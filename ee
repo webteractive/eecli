@@ -38,19 +38,25 @@ class GitHub
 
   public function getZipFileUrl()
   {
-    $url = ["https://github.com/{$this->vendor}/{$this->repo}/archive/"];
+    return join('', [
+      "https://github.com/{$this->vendor}/{$this->repo}/archive/",
+      $this->getZipFile()
+    ]);
 
+  }
+
+  public function getZipFile()
+  {
     if (strpos($this->repo, '@')) {
-      $url[] = $this->version . '.zip';
+      return $this->version . '.zip';
     } else if (strpos($this->repo, ':')) {
-      $url[] = $this->branch . '.zip';
-    } else {
-      $latest = (new Client())->get("https://api.github.com/repos/{$this->version}/{$this->repo}/releases/latest");
+      return $this->branch . '.zip';
     }
 
+    $request = (new Client())->get("https://api.github.com/repos/{$this->vendor}/{$this->repo}/releases/latest");
+    $latest = json_decode($request->getBody());
 
-    return join('', $url);
-
+    return "{$latest->tag_name}.zip";
   }
 
 }
@@ -61,22 +67,28 @@ class GitHubAddonDownloader
   protected $addon;
 
   public function __construct($addon) {
-    $this->addon = $addon;
+    $this->addon = new GitHub($addon);
     $this->fs = new Filesystem();
   }
 
   public function download()
   {
-    $this->prepareWritableDirs();
-    $repo = new GitHub($this->addon);
-    print_r($repo->getZipFileUrl());  
+    $this->makeDir(__DIR__ . '/ee_temp');
+
+    $response = (new Client)->get($this->addon->getZipFileUrl());
+
+    file_put_contents(__DIR__ . '/ee_temp/' . $this->addon->getZipFile(), $response->getBody());
+
+    print_r($this->addon->getZipFileUrl());  
   }
 
-  public function prepareWritableDirs()
+  public function makeDir($dir)
   {
-    if (! $this->fs->exists(__DIR__ . '/ee_temp')) {
-      $this->fs->mkdir(__DIR__ . '/ee_temp');
+    if (! $this->fs->exists($dir)) {
+      $this->fs->mkdir($dir);
     }
+
+    return $this->fs->exists($dir);
   }
 }
 
