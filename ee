@@ -1,0 +1,118 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__.'/vendor/autoload.php';
+
+use GuzzleHttp\Client;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Filesystem\Filesystem;
+
+class GitHub
+{
+  public $repo;
+  public $vendor;
+  public $branch;
+  public $version;
+
+  public function __construct($addon) {
+    [$vendor, $repo] = explode('/', $addon);
+
+    if (strpos($repo, '@')) {
+      [$repo, $version] = explode('@', $repo);
+      $this->repo = $repo;
+      $this->version = $version;
+    } else if (strpos($repo, ':')) {
+      [$repo, $branch] = explode(':', $repo);
+      $this->repo = $repo;
+      $this->branch = $branch;
+    } else {
+      $this->repo = $repo;
+    }
+    $this->vendor = $vendor;
+  }
+
+  public function getZipFileUrl()
+  {
+    $url = ["https://github.com/{$this->vendor}/{$this->repo}/archive/"];
+
+    if (strpos($this->repo, '@')) {
+      $url[] = $this->version . '.zip';
+    } else if (strpos($this->repo, ':')) {
+      $url[] = $this->branch . '.zip';
+    } else {
+      $latest = (new Client())->get("https://api.github.com/repos/{$this->version}/{$this->repo}/releases/latest");
+    }
+
+
+    return join('', $url);
+
+  }
+
+}
+
+class GitHubAddonDownloader
+{
+  protected $fs;
+  protected $addon;
+
+  public function __construct($addon) {
+    $this->addon = $addon;
+    $this->fs = new Filesystem();
+  }
+
+  public function download()
+  {
+    $this->prepareWritableDirs();
+    $repo = new GitHub($this->addon);
+    print_r($repo->getZipFileUrl());  
+  }
+
+  public function prepareWritableDirs()
+  {
+    if (! $this->fs->exists(__DIR__ . '/ee_temp')) {
+      $this->fs->mkdir(__DIR__ . '/ee_temp');
+    }
+  }
+}
+
+class InstallAddonCommand extends Command
+{
+  protected static $defaultName = 'addon:install';
+
+  protected $downloaders = [
+    'github' => GitHubAddonDownloader::class
+  ];
+
+  protected function configure()
+  {
+    $this->setDescription('Install addon')
+        ->addArgument('addon', InputArgument::REQUIRED, 'The name of the addon that you want to install. This should be in a format vendor/addon_name.')
+        ->addOption('source', null, InputOption::VALUE_REQUIRED, 'Where should we look for the addon that you want to install', 'github');
+  }
+
+  protected function execute(InputInterface $input, OutputInterface $output)
+  {
+    $addon = $input->getArgument('addon');
+    $source = $input->getOption('source');
+    $source = $input->getOption('source');
+
+    $downloader = new $this->downloaders[$source]($addon);
+    $downloader->download();
+
+    // $downloader = new GitHubAddonDownloader($input->getArgument('addon'), $input->getOption('source'));
+
+    
+    $output->writeln('Addon: ' . $addon);
+    $output->writeln('Source: ' . $source);
+    return 0;
+  }
+}
+
+$app = new Application('ExpressionEngine CLI', '1.0.0');
+$app->add(new InstallAddonCommand);
+$app->run();

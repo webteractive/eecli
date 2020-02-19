@@ -1,0 +1,7 @@
+/node_modules
+/vendor
+/ee_temp
+
+.env
+npm-debug.log
+yarn-error.log

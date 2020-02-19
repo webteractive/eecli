@@ -1,0 +1,26 @@
+{
+    "name": "webteractive/expressionengine-env",
+    "description": "ExpressionEngine CMS with PHP dotenv",
+    "keywords": ["ee", "ee5", "phpdotenv", "eecms", "expressionengine"],
+    "type": "project",
+    "license": "Apache-2.0",
+    "require": {
+        "vlucas/phpdotenv": "^3.3",
+        "symfony/console": "^5.0",
+        "symfony/filesystem": "^5.0",
+        "guzzlehttp/guzzle": "^6.5"
+    },
+    "authors": [
+        {
+            "name": "Glen Bangkila",
+            "email": "hadeinvane@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.stub', '.env');\""
+        ]
+    }
+}
